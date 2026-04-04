@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'ABC Arizona Serif';
+  src: url('/fonts/ABCArizonaSerif-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Arizona Serif';
+  src: url('/fonts/ABCArizonaSerif-LightItalic.woff2') format('woff2');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Pelikan';
+  src: url('/fonts/ABCPelikan-Book.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Pelikan';
+  src: url('/fonts/ABCPelikan-BookItalic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Pelikan';
+  src: url('/fonts/ABCPelikan-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Pelikan';
+  src: url('/fonts/ABCPelikan-MediumItalic.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: 'ABC Arizona Serif', Times, serif;
+  --font-sans: 'ABC Pelikan', Inter, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+
+  --color-lumen-white: #FFFFFF;
+  --color-lumen-black: #1A1A1A;
+  --color-lumen-sky-blue: #B1E5FF;
+  --color-lumen-sky-blue-100: #CAEDFF;
+  --color-lumen-sky-blue-400: #77AFD7;
+  --color-lumen-sky-blue-500: #68A2CD;
+  --color-lumen-electric-yellow: #DFFF5E;
+  --color-lumen-electric-yellow-tint: #ECFFB2;
+  --color-lumen-electric-yellow-100: #B8D150;
+  --color-lumen-graphite-black: #1A1A1A;
+  --color-lumen-graphite-100: #656565;
+  --color-lumen-concrete: #9FA38F;
+  --color-lumen-concrete-100: #E7E8E3;
+  --color-lumen-concrete-200: #CFD1C7;
+  --color-lumen-arctic-white: #FFFFFF;
+  --color-lumen-danger: #FF6B6B;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-lumen-black);
+  background: var(--color-lumen-white);
+}
