@@ -4,7 +4,6 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { useScoredSites } from '../../hooks/useScoredSites'
 import { useUiStore } from '../../store/uiStore'
 import { useCustomSitesStore } from '../../store/customSitesStore'
-import powerLinesData from '../../data/nearby-power-lines.json'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -40,8 +39,17 @@ export default function ScreenerMap() {
       // --- Sources ---
       map.addSource('power-lines', {
         type: 'geojson',
-        data: powerLinesData as GeoJSON.FeatureCollection,
+        data: { type: 'FeatureCollection', features: [] },
       })
+
+      // Load power lines from static file at runtime
+      fetch('/nearby-power-lines.json')
+        .then(r => r.json())
+        .then(data => {
+          const src = map.getSource('power-lines') as mapboxgl.GeoJSONSource | undefined
+          if (src) src.setData(data)
+        })
+        .catch(() => {})
 
       map.addSource('boundaries-geojson', {
         type: 'geojson',
