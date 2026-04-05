@@ -43,17 +43,6 @@ const FLOOD_ZONES: Array<{ zone: string; risk: 'High' | 'Medium' | 'Low' }> = [
 
 const HOSTING_TIERS: Array<'High' | 'Medium' | 'Low' | 'Unknown'> = ['High', 'Medium', 'Medium', 'Low', 'Unknown', 'High', 'Medium']
 
-const ZONING_CODES: Array<{ code: string; desc: string; compat: 'Yes' | 'Review' | 'No' }> = [
-  { code: 'I-1', desc: 'Light Industrial', compat: 'Yes' },
-  { code: 'I-2', desc: 'General Industrial', compat: 'Yes' },
-  { code: 'M-1', desc: 'Manufacturing', compat: 'Yes' },
-  { code: 'C-3', desc: 'General Commercial', compat: 'Yes' },
-  { code: 'C-1', desc: 'Neighborhood Commercial', compat: 'Review' },
-  { code: 'B-2', desc: 'Community Business', compat: 'Review' },
-  { code: 'PD', desc: 'Planned Development', compat: 'Review' },
-  { code: 'R-3', desc: 'Residential Multi-Family', compat: 'No' },
-  { code: 'AG', desc: 'Agricultural', compat: 'Yes' },
-]
 
 function seededRandom(seed: number): () => number {
   let s = seed

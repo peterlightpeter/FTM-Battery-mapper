@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useScoredSites } from '../../hooks/useScoredSites'
 import { useUiStore } from '../../store/uiStore'
+import { useCustomSitesStore } from '../../store/customSitesStore'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -10,8 +11,15 @@ export default function ScreenerMap() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const { allSites } = useScoredSites()
+  const customSites = useCustomSitesStore((s) => s.customSites)
   const selectedSiteId = useUiStore((s) => s.selectedSiteId)
   const setSelectedSiteId = useUiStore((s) => s.setSelectedSiteId)
+
+  // Combine scored sites with uploaded custom sites
+  const combinedSites = useMemo(
+    () => [...allSites, ...customSites],
+    [allSites, customSites],
+  )
 
   // Initialize map
   useEffect(() => {
@@ -24,7 +32,7 @@ export default function ScreenerMap() {
     mapboxgl.accessToken = MAPBOX_TOKEN
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/satellite-streets-v12',
       center: [-88.5, 41.8],
       zoom: 8,
     })
@@ -101,7 +109,7 @@ export default function ScreenerMap() {
 
     const geojson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: allSites.map((s) => ({
+      features: combinedSites.map((s) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
         properties: {
@@ -116,7 +124,7 @@ export default function ScreenerMap() {
       })),
     }
     source.setData(geojson)
-  }, [allSites])
+  }, [combinedSites])
 
   useEffect(() => {
     // Retry a few times until map is loaded
@@ -136,7 +144,7 @@ export default function ScreenerMap() {
     if (!map || !map.isStyleLoaded()) return
 
     if (selectedSiteId) {
-      const site = allSites.find((s) => s.id === selectedSiteId)
+      const site = combinedSites.find((s) => s.id === selectedSiteId)
       if (site) {
         map.flyTo({ center: [site.lng, site.lat], zoom: Math.max(map.getZoom(), 11), duration: 800 })
       }
@@ -144,14 +152,14 @@ export default function ScreenerMap() {
     } else {
       map.setFilter('sites-selected', ['==', ['get', 'id'], ''])
     }
-  }, [selectedSiteId, allSites])
+  }, [selectedSiteId, combinedSites])
 
   if (!MAPBOX_TOKEN) {
     return (
       <div className="w-full h-full bg-lumen-concrete-100 flex flex-col items-center justify-center gap-2">
         <p className="text-lumen-graphite-100 text-sm font-medium">Mapbox token not configured</p>
         <p className="text-lumen-concrete text-xs">Set VITE_MAPBOX_TOKEN in .env to enable the map</p>
-        <p className="text-lumen-concrete text-xs">{allSites.length} sites loaded</p>
+        <p className="text-lumen-concrete text-xs">{combinedSites.length} sites loaded</p>
       </div>
     )
   }
