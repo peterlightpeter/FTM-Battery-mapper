@@ -1,5 +1,6 @@
 import type { Site, SiteEnrichment } from '../types'
 import customerSitesRaw from './customer-sites.json'
+import interconnectionsRaw from './site-interconnections.json'
 
 interface RawSite {
   name: string
@@ -14,6 +15,16 @@ interface RawSite {
 }
 
 const customerSites = customerSitesRaw as RawSite[]
+
+interface Interconnection {
+  site_name: string
+  nearest_line_lat: number | null
+  nearest_line_lng: number | null
+  nearest_line_dist_mi: number | null
+  nearest_line_voltage: string | null
+  nearest_line_type: string | null
+}
+const interconnections = interconnectionsRaw as Interconnection[]
 
 const SUBSTATIONS = [
   { name: 'Joliet North', kv: 138, lat: 41.5250, lng: -88.0817 },
@@ -82,6 +93,7 @@ function generateSites(): Array<{ site: Site; enrichment: SiteEnrichment }> {
 
   for (let i = 0; i < customerSites.length; i++) {
     const raw = customerSites[i]
+    const ic = interconnections[i] || {} as Partial<Interconnection>
     const sub = SUBSTATIONS[Math.floor(rand() * SUBSTATIONS.length)]
     const fz = FLOOD_ZONES[Math.floor(rand() * FLOOD_ZONES.length)]
     const ht = HOSTING_TIERS[Math.floor(rand() * HOSTING_TIERS.length)]
@@ -124,6 +136,11 @@ function generateSites(): Array<{ site: Site; enrichment: SiteEnrichment }> {
         nearest_substation_kv: sub.kv,
         nearest_substation_lat: sub.lat,
         nearest_substation_lng: sub.lng,
+        nearest_line_lat: ic.nearest_line_lat ?? 0,
+        nearest_line_lng: ic.nearest_line_lng ?? 0,
+        nearest_line_dist_mi: ic.nearest_line_dist_mi ?? 0,
+        nearest_line_voltage: ic.nearest_line_voltage ?? '',
+        nearest_line_type: ic.nearest_line_type ?? '',
         hosting_capacity_tier: ht,
         hosting_capacity_mw_min: hostingMin,
         hosting_capacity_mw_max: hostingMax,

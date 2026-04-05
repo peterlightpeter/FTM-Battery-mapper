@@ -6,6 +6,15 @@ import ScoreBadge from '../table/ScoreBadge'
 import ScoreBreakdown from './ScoreBreakdown'
 import AttributeTable from './AttributeTable'
 
+function formatVoltage(v: string) {
+  if (!v) return '—'
+  const voltages = [...new Set(v.split(';'))].map(s => {
+    const kv = parseInt(s) / 1000
+    return kv >= 1 ? `${kv}kV` : `${parseInt(s)}V`
+  })
+  return voltages.join(' / ')
+}
+
 export default function SiteDetailPanel() {
   const { siteId } = useParams()
   const navigate = useNavigate()
@@ -95,6 +104,53 @@ export default function SiteDetailPanel() {
             <span className="text-xs font-mono font-medium w-10 text-right">{site.commercial_score.toFixed(1)}</span>
           </div>
         </div>
+      </div>
+
+      {/* Hosting Capacity & Grid Interconnection */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+        <h3 className="text-xs font-medium uppercase text-red-700 tracking-wide">Grid Interconnection</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          <div className="text-lumen-graphite-100">Nearest Line</div>
+          <div className="font-medium">{site.enrichment.nearest_line_dist_mi} mi</div>
+          <div className="text-lumen-graphite-100">Line Type</div>
+          <div className="font-medium capitalize">{site.enrichment.nearest_line_type === 'minor_line' ? 'Distribution' : site.enrichment.nearest_line_type === 'line' ? 'Transmission' : site.enrichment.nearest_line_type || '—'}</div>
+          <div className="text-lumen-graphite-100">Line Voltage</div>
+          <div className="font-medium">{formatVoltage(site.enrichment.nearest_line_voltage)}</div>
+          <div className="text-lumen-graphite-100">Nearest Substation</div>
+          <div className="font-medium">{site.enrichment.nearest_substation_name}</div>
+          <div className="text-lumen-graphite-100">Substation kV</div>
+          <div className="font-medium">{site.enrichment.nearest_substation_kv} kV</div>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+        <h3 className="text-xs font-medium uppercase text-amber-700 tracking-wide">BESS Hosting Capacity</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          <div className="text-lumen-graphite-100">Capacity Tier</div>
+          <div className="font-medium">
+            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+              site.enrichment.hosting_capacity_tier === 'High' ? 'bg-green-100 text-green-800' :
+              site.enrichment.hosting_capacity_tier === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+              site.enrichment.hosting_capacity_tier === 'Low' ? 'bg-red-100 text-red-800' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {site.enrichment.hosting_capacity_tier}
+            </span>
+          </div>
+          <div className="text-lumen-graphite-100">Capacity Range</div>
+          <div className="font-medium">
+            {site.enrichment.hosting_capacity_mw_min !== null && site.enrichment.hosting_capacity_mw_max !== null
+              ? `${site.enrichment.hosting_capacity_mw_min} – ${site.enrichment.hosting_capacity_mw_max} MW`
+              : '—'}
+          </div>
+          <div className="text-lumen-graphite-100">MISO LRZ</div>
+          <div className="font-medium">Zone {site.enrichment.miso_lrz}</div>
+          <div className="text-lumen-graphite-100">MISO P-Node</div>
+          <div className="font-medium text-[11px]">{site.enrichment.miso_pnode_name}</div>
+        </div>
+        <p className="text-[10px] text-amber-600 mt-1">
+          Source: ComEd BESS Hosting Capacity Map (Q1 2026)
+        </p>
       </div>
 
       {/* Score Breakdown */}

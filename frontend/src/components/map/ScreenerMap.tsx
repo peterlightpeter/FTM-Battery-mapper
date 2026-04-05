@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { useScoredSites } from '../../hooks/useScoredSites'
 import { useUiStore } from '../../store/uiStore'
 import { useCustomSitesStore } from '../../store/customSitesStore'
+import powerLinesData from '../../data/nearby-power-lines.json'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -15,7 +16,6 @@ export default function ScreenerMap() {
   const selectedSiteId = useUiStore((s) => s.selectedSiteId)
   const setSelectedSiteId = useUiStore((s) => s.setSelectedSiteId)
 
-  // Combine scored sites with uploaded custom sites
   const combinedSites = useMemo(
     () => [...allSites, ...customSites],
     [allSites, customSites],
@@ -24,10 +24,7 @@ export default function ScreenerMap() {
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
-
-    if (!MAPBOX_TOKEN) {
-      return
-    }
+    if (!MAPBOX_TOKEN) return
 
     mapboxgl.accessToken = MAPBOX_TOKEN
     const map = new mapboxgl.Map({
@@ -40,20 +37,23 @@ export default function ScreenerMap() {
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
-      // Property boundary polygons source
+      // --- Sources ---
+      map.addSource('power-lines', {
+        type: 'geojson',
+        data: powerLinesData as GeoJSON.FeatureCollection,
+      })
+
       map.addSource('boundaries-geojson', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
 
-      // Substation lines source
-      map.addSource('substation-lines-geojson', {
+      map.addSource('interconnect-lines-geojson', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
 
-      // Substation points source
-      map.addSource('substation-points-geojson', {
+      map.addSource('interconnect-points-geojson', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
@@ -61,6 +61,26 @@ export default function ScreenerMap() {
       map.addSource('sites-geojson', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // --- Layers (bottom to top) ---
+
+      // Distribution / transmission power lines (always visible when zoomed in)
+      map.addLayer({
+        id: 'power-lines-bg',
+        type: 'line',
+        source: 'power-lines',
+        minzoom: 10,
+        paint: {
+          'line-color': [
+            'match', ['get', 't'],
+            'minor_line', '#F59E0B',
+            'cable', '#8B5CF6',
+            '#F97316',
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 3],
+          'line-opacity': 0.5,
+        },
       })
 
       // Property boundary layer — purple outline
@@ -76,51 +96,51 @@ export default function ScreenerMap() {
         },
       })
 
-      // Substation proximity lines — red dotted
+      // Interconnection line — red dotted (site → nearest distribution line)
       map.addLayer({
-        id: 'substation-lines',
+        id: 'interconnect-lines',
         type: 'line',
-        source: 'substation-lines-geojson',
+        source: 'interconnect-lines-geojson',
         filter: ['==', ['get', 'site_id'], ''],
         paint: {
           'line-color': '#EF4444',
-          'line-width': 2,
-          'line-dasharray': [2, 4],
-          'line-opacity': 0.9,
+          'line-width': 2.5,
+          'line-dasharray': [2, 3],
+          'line-opacity': 0.95,
         },
       })
 
-      // Substation point markers
+      // Interconnection endpoint marker (point on the distribution line)
       map.addLayer({
-        id: 'substation-points',
+        id: 'interconnect-points',
         type: 'circle',
-        source: 'substation-points-geojson',
+        source: 'interconnect-points-geojson',
         filter: ['==', ['get', 'site_id'], ''],
         paint: {
-          'circle-radius': 6,
+          'circle-radius': 7,
           'circle-color': '#EF4444',
           'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 2,
         },
       })
 
-      // Substation labels
+      // Interconnection label
       map.addLayer({
-        id: 'substation-labels',
+        id: 'interconnect-labels',
         type: 'symbol',
-        source: 'substation-points-geojson',
+        source: 'interconnect-points-geojson',
         filter: ['==', ['get', 'site_id'], ''],
         layout: {
-          'text-field': ['get', 'name'],
+          'text-field': ['get', 'label'],
           'text-size': 11,
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 1.8],
           'text-anchor': 'top',
           'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
         },
         paint: {
           'text-color': '#EF4444',
           'text-halo-color': '#000000',
-          'text-halo-width': 1,
+          'text-halo-width': 1.2,
         },
       })
 
@@ -145,7 +165,7 @@ export default function ScreenerMap() {
         },
       })
 
-      // Selected site highlight layer
+      // Selected site highlight
       map.addLayer({
         id: 'sites-selected',
         type: 'circle',
@@ -169,12 +189,8 @@ export default function ScreenerMap() {
       }
     })
 
-    map.on('mouseenter', 'sites', () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
-    map.on('mouseleave', 'sites', () => {
-      map.getCanvas().style.cursor = ''
-    })
+    map.on('mouseenter', 'sites', () => { map.getCanvas().style.cursor = 'pointer' })
+    map.on('mouseleave', 'sites', () => { map.getCanvas().style.cursor = '' })
 
     return () => { map.remove(); mapRef.current = null }
   }, [setSelectedSiteId])
@@ -194,6 +210,16 @@ export default function ScreenerMap() {
     ]
   }, [])
 
+  // Format voltage string for display
+  const formatVoltage = (v: string) => {
+    if (!v) return 'Distribution'
+    const voltages = [...new Set(v.split(';'))].map(s => {
+      const kv = parseInt(s) / 1000
+      return kv >= 1 ? `${kv}kV` : `${parseInt(s)}V`
+    })
+    return voltages.join(' / ')
+  }
+
   // Update GeoJSON data when sites change
   const updateSource = useCallback(() => {
     const map = mapRef.current
@@ -201,8 +227,8 @@ export default function ScreenerMap() {
 
     const sitesSource = map.getSource('sites-geojson') as mapboxgl.GeoJSONSource | undefined
     const boundariesSource = map.getSource('boundaries-geojson') as mapboxgl.GeoJSONSource | undefined
-    const linesSource = map.getSource('substation-lines-geojson') as mapboxgl.GeoJSONSource | undefined
-    const pointsSource = map.getSource('substation-points-geojson') as mapboxgl.GeoJSONSource | undefined
+    const linesSource = map.getSource('interconnect-lines-geojson') as mapboxgl.GeoJSONSource | undefined
+    const pointsSource = map.getSource('interconnect-points-geojson') as mapboxgl.GeoJSONSource | undefined
     if (!sitesSource) return
 
     // Site points
@@ -238,41 +264,41 @@ export default function ScreenerMap() {
       })
     }
 
-    // Substation proximity lines (one line per site: site → substation)
+    // Interconnection lines (site → nearest distribution line point)
     if (linesSource) {
       linesSource.setData({
         type: 'FeatureCollection',
         features: combinedSites
-          .filter((s) => s.enrichment.nearest_substation_lat && s.enrichment.nearest_substation_lng)
+          .filter((s) => s.enrichment.nearest_line_lat && s.enrichment.nearest_line_lng)
           .map((s) => ({
             type: 'Feature' as const,
             geometry: {
               type: 'LineString' as const,
               coordinates: [
                 [s.lng, s.lat],
-                [s.enrichment.nearest_substation_lng, s.enrichment.nearest_substation_lat],
+                [s.enrichment.nearest_line_lng, s.enrichment.nearest_line_lat],
               ],
             },
-            properties: { site_id: s.id, substation_name: s.enrichment.nearest_substation_name },
+            properties: { site_id: s.id },
           })),
       })
     }
 
-    // Substation endpoint markers
+    // Interconnection endpoint markers
     if (pointsSource) {
       pointsSource.setData({
         type: 'FeatureCollection',
         features: combinedSites
-          .filter((s) => s.enrichment.nearest_substation_lat && s.enrichment.nearest_substation_lng)
+          .filter((s) => s.enrichment.nearest_line_lat && s.enrichment.nearest_line_lng)
           .map((s) => ({
             type: 'Feature' as const,
             geometry: {
               type: 'Point' as const,
-              coordinates: [s.enrichment.nearest_substation_lng, s.enrichment.nearest_substation_lat],
+              coordinates: [s.enrichment.nearest_line_lng, s.enrichment.nearest_line_lat],
             },
             properties: {
               site_id: s.id,
-              name: `⚡ ${s.enrichment.nearest_substation_name} (${s.enrichment.nearest_substation_kv}kV)`,
+              label: `⚡ Interconnect: ${formatVoltage(s.enrichment.nearest_line_voltage)} (${s.enrichment.nearest_line_dist_mi} mi)`,
             },
           })),
       })
@@ -280,7 +306,6 @@ export default function ScreenerMap() {
   }, [combinedSites, makeBoundaryPolygon])
 
   useEffect(() => {
-    // Retry a few times until map is loaded
     const tryUpdate = () => {
       if (mapRef.current?.isStyleLoaded()) {
         updateSource()
@@ -291,7 +316,7 @@ export default function ScreenerMap() {
     tryUpdate()
   }, [updateSource])
 
-  // Fly to selected site
+  // Fly to selected site & show interconnection line
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
@@ -299,17 +324,17 @@ export default function ScreenerMap() {
     if (selectedSiteId) {
       const site = combinedSites.find((s) => s.id === selectedSiteId)
       if (site) {
-        map.flyTo({ center: [site.lng, site.lat], zoom: Math.max(map.getZoom(), 11), duration: 800 })
+        map.flyTo({ center: [site.lng, site.lat], zoom: Math.max(map.getZoom(), 13), duration: 800 })
       }
       map.setFilter('sites-selected', ['==', ['get', 'id'], selectedSiteId])
-      map.setFilter('substation-lines', ['==', ['get', 'site_id'], selectedSiteId])
-      map.setFilter('substation-points', ['==', ['get', 'site_id'], selectedSiteId])
-      map.setFilter('substation-labels', ['==', ['get', 'site_id'], selectedSiteId])
+      map.setFilter('interconnect-lines', ['==', ['get', 'site_id'], selectedSiteId])
+      map.setFilter('interconnect-points', ['==', ['get', 'site_id'], selectedSiteId])
+      map.setFilter('interconnect-labels', ['==', ['get', 'site_id'], selectedSiteId])
     } else {
       map.setFilter('sites-selected', ['==', ['get', 'id'], ''])
-      map.setFilter('substation-lines', ['==', ['get', 'site_id'], ''])
-      map.setFilter('substation-points', ['==', ['get', 'site_id'], ''])
-      map.setFilter('substation-labels', ['==', ['get', 'site_id'], ''])
+      map.setFilter('interconnect-lines', ['==', ['get', 'site_id'], ''])
+      map.setFilter('interconnect-points', ['==', ['get', 'site_id'], ''])
+      map.setFilter('interconnect-labels', ['==', ['get', 'site_id'], ''])
     }
   }, [selectedSiteId, combinedSites])
 

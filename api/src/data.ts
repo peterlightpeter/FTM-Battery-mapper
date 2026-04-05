@@ -27,6 +27,11 @@ export interface SiteEnrichment {
   nearest_substation_kv: number
   nearest_substation_lat: number
   nearest_substation_lng: number
+  nearest_line_lat: number
+  nearest_line_lng: number
+  nearest_line_dist_mi: number
+  nearest_line_voltage: string
+  nearest_line_type: string
   hosting_capacity_tier: string
   hosting_capacity_mw_min: number | null
   hosting_capacity_mw_max: number | null
@@ -139,6 +144,8 @@ function generateMockData() {
         nearest_substation_id: `SUB-${Math.floor(rand() * 900) + 100}`,
         nearest_substation_dist_mi: dist, nearest_substation_kv: sub.kv,
         nearest_substation_lat: sub.lat, nearest_substation_lng: sub.lng,
+        nearest_line_lat: 0, nearest_line_lng: 0, nearest_line_dist_mi: 0,
+        nearest_line_voltage: '', nearest_line_type: '',
         hosting_capacity_tier: ht,
         hosting_capacity_mw_min: ht === 'High' ? 6 : ht === 'Medium' ? 3 : ht === 'Low' ? 0 : null,
         hosting_capacity_mw_max: ht === 'High' ? 15 : ht === 'Medium' ? 6 : ht === 'Low' ? 3 : null,

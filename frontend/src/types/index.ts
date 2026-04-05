@@ -24,6 +24,11 @@ export interface SiteEnrichment {
   nearest_substation_kv: number
   nearest_substation_lat: number
   nearest_substation_lng: number
+  nearest_line_lat: number
+  nearest_line_lng: number
+  nearest_line_dist_mi: number
+  nearest_line_voltage: string
+  nearest_line_type: string
   hosting_capacity_tier: 'High' | 'Medium' | 'Low' | 'Unknown'
   hosting_capacity_mw_min: number | null
   hosting_capacity_mw_max: number | null
