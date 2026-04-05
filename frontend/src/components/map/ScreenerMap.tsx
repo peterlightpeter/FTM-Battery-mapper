@@ -40,11 +40,91 @@ export default function ScreenerMap() {
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
+      // Property boundary polygons source
+      map.addSource('boundaries-geojson', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // Substation lines source
+      map.addSource('substation-lines-geojson', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // Substation points source
+      map.addSource('substation-points-geojson', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
       map.addSource('sites-geojson', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
 
+      // Property boundary layer — purple outline
+      map.addLayer({
+        id: 'boundaries',
+        type: 'line',
+        source: 'boundaries-geojson',
+        minzoom: 12,
+        paint: {
+          'line-color': '#9333EA',
+          'line-width': 2,
+          'line-opacity': 0.8,
+        },
+      })
+
+      // Substation proximity lines — red dotted
+      map.addLayer({
+        id: 'substation-lines',
+        type: 'line',
+        source: 'substation-lines-geojson',
+        filter: ['==', ['get', 'site_id'], ''],
+        paint: {
+          'line-color': '#EF4444',
+          'line-width': 2,
+          'line-dasharray': [2, 4],
+          'line-opacity': 0.9,
+        },
+      })
+
+      // Substation point markers
+      map.addLayer({
+        id: 'substation-points',
+        type: 'circle',
+        source: 'substation-points-geojson',
+        filter: ['==', ['get', 'site_id'], ''],
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#EF4444',
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-width': 2,
+        },
+      })
+
+      // Substation labels
+      map.addLayer({
+        id: 'substation-labels',
+        type: 'symbol',
+        source: 'substation-points-geojson',
+        filter: ['==', ['get', 'site_id'], ''],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 11,
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top',
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+        },
+        paint: {
+          'text-color': '#EF4444',
+          'text-halo-color': '#000000',
+          'text-halo-width': 1,
+        },
+      })
+
+      // Site circles
       map.addLayer({
         id: 'sites',
         type: 'circle',
@@ -74,7 +154,7 @@ export default function ScreenerMap() {
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 8, 12, 14],
           'circle-color': 'transparent',
-          'circle-stroke-color': '#1A1A1A',
+          'circle-stroke-color': '#FFFFFF',
           'circle-stroke-width': 3,
         },
       })
@@ -99,15 +179,34 @@ export default function ScreenerMap() {
     return () => { map.remove(); mapRef.current = null }
   }, [setSelectedSiteId])
 
+  // Generate a rectangular property boundary polygon from lot area
+  const makeBoundaryPolygon = useCallback((lat: number, lng: number, lotSqft: number) => {
+    const areaM2 = lotSqft * 0.092903
+    const side = Math.sqrt(areaM2)
+    const halfSideLat = (side / 2) / 111320
+    const halfSideLng = (side / 2) / (111320 * Math.cos(lat * Math.PI / 180))
+    return [
+      [lng - halfSideLng, lat - halfSideLat],
+      [lng + halfSideLng, lat - halfSideLat],
+      [lng + halfSideLng, lat + halfSideLat],
+      [lng - halfSideLng, lat + halfSideLat],
+      [lng - halfSideLng, lat - halfSideLat],
+    ]
+  }, [])
+
   // Update GeoJSON data when sites change
   const updateSource = useCallback(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
 
-    const source = map.getSource('sites-geojson') as mapboxgl.GeoJSONSource | undefined
-    if (!source) return
+    const sitesSource = map.getSource('sites-geojson') as mapboxgl.GeoJSONSource | undefined
+    const boundariesSource = map.getSource('boundaries-geojson') as mapboxgl.GeoJSONSource | undefined
+    const linesSource = map.getSource('substation-lines-geojson') as mapboxgl.GeoJSONSource | undefined
+    const pointsSource = map.getSource('substation-points-geojson') as mapboxgl.GeoJSONSource | undefined
+    if (!sitesSource) return
 
-    const geojson: GeoJSON.FeatureCollection = {
+    // Site points
+    sitesSource.setData({
       type: 'FeatureCollection',
       features: combinedSites.map((s) => ({
         type: 'Feature' as const,
@@ -122,9 +221,63 @@ export default function ScreenerMap() {
           utility_name: s.utility_name,
         },
       })),
+    })
+
+    // Property boundary polygons
+    if (boundariesSource) {
+      boundariesSource.setData({
+        type: 'FeatureCollection',
+        features: combinedSites.map((s) => ({
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: [makeBoundaryPolygon(s.lat, s.lng, s.lot_area_sqft)],
+          },
+          properties: { id: s.id },
+        })),
+      })
     }
-    source.setData(geojson)
-  }, [combinedSites])
+
+    // Substation proximity lines (one line per site: site → substation)
+    if (linesSource) {
+      linesSource.setData({
+        type: 'FeatureCollection',
+        features: combinedSites
+          .filter((s) => s.enrichment.nearest_substation_lat && s.enrichment.nearest_substation_lng)
+          .map((s) => ({
+            type: 'Feature' as const,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: [
+                [s.lng, s.lat],
+                [s.enrichment.nearest_substation_lng, s.enrichment.nearest_substation_lat],
+              ],
+            },
+            properties: { site_id: s.id, substation_name: s.enrichment.nearest_substation_name },
+          })),
+      })
+    }
+
+    // Substation endpoint markers
+    if (pointsSource) {
+      pointsSource.setData({
+        type: 'FeatureCollection',
+        features: combinedSites
+          .filter((s) => s.enrichment.nearest_substation_lat && s.enrichment.nearest_substation_lng)
+          .map((s) => ({
+            type: 'Feature' as const,
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [s.enrichment.nearest_substation_lng, s.enrichment.nearest_substation_lat],
+            },
+            properties: {
+              site_id: s.id,
+              name: `⚡ ${s.enrichment.nearest_substation_name} (${s.enrichment.nearest_substation_kv}kV)`,
+            },
+          })),
+      })
+    }
+  }, [combinedSites, makeBoundaryPolygon])
 
   useEffect(() => {
     // Retry a few times until map is loaded
@@ -149,8 +302,14 @@ export default function ScreenerMap() {
         map.flyTo({ center: [site.lng, site.lat], zoom: Math.max(map.getZoom(), 11), duration: 800 })
       }
       map.setFilter('sites-selected', ['==', ['get', 'id'], selectedSiteId])
+      map.setFilter('substation-lines', ['==', ['get', 'site_id'], selectedSiteId])
+      map.setFilter('substation-points', ['==', ['get', 'site_id'], selectedSiteId])
+      map.setFilter('substation-labels', ['==', ['get', 'site_id'], selectedSiteId])
     } else {
       map.setFilter('sites-selected', ['==', ['get', 'id'], ''])
+      map.setFilter('substation-lines', ['==', ['get', 'site_id'], ''])
+      map.setFilter('substation-points', ['==', ['get', 'site_id'], ''])
+      map.setFilter('substation-labels', ['==', ['get', 'site_id'], ''])
     }
   }, [selectedSiteId, combinedSites])
 

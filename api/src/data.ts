@@ -25,6 +25,8 @@ export interface SiteEnrichment {
   nearest_substation_id: string
   nearest_substation_dist_mi: number
   nearest_substation_kv: number
+  nearest_substation_lat: number
+  nearest_substation_lng: number
   hosting_capacity_tier: string
   hosting_capacity_mw_min: number | null
   hosting_capacity_mw_max: number | null
@@ -65,10 +67,18 @@ const customerSites: RawSite[] = JSON.parse(
 )
 
 const SUBSTATIONS = [
-  { name: 'Joliet North', kv: 138 },{ name: 'Aurora West', kv: 138 },{ name: 'Chicago Loop', kv: 345 },
-  { name: 'Schaumburg Central', kv: 138 },{ name: 'Rockford East', kv: 69 },{ name: 'Naperville South', kv: 138 },
-  { name: 'Waukegan Lake', kv: 138 },{ name: 'Elgin River', kv: 69 },{ name: 'DeKalb Prairie', kv: 69 },
-  { name: 'Bolingbrook Industrial', kv: 138 },{ name: 'Kankakee Grid', kv: 69 },{ name: 'Cicero Junction', kv: 138 },
+  { name: 'Joliet North', kv: 138, lat: 41.5250, lng: -88.0817 },
+  { name: 'Aurora West', kv: 138, lat: 41.7606, lng: -88.3201 },
+  { name: 'Chicago Loop', kv: 345, lat: 41.8781, lng: -87.6298 },
+  { name: 'Schaumburg Central', kv: 138, lat: 42.0334, lng: -88.0834 },
+  { name: 'Rockford East', kv: 69, lat: 42.2711, lng: -89.0940 },
+  { name: 'Naperville South', kv: 138, lat: 41.7508, lng: -88.1535 },
+  { name: 'Waukegan Lake', kv: 138, lat: 42.3636, lng: -87.8448 },
+  { name: 'Elgin River', kv: 69, lat: 42.0354, lng: -88.2826 },
+  { name: 'DeKalb Prairie', kv: 69, lat: 41.9295, lng: -88.7519 },
+  { name: 'Bolingbrook Industrial', kv: 138, lat: 41.6986, lng: -88.0684 },
+  { name: 'Kankakee Grid', kv: 69, lat: 41.1200, lng: -87.8612 },
+  { name: 'Cicero Junction', kv: 138, lat: 41.8456, lng: -87.7540 },
 ]
 const FLOOD_ZONES = [
   { zone: 'X', risk: 'Low' },{ zone: 'X', risk: 'Low' },{ zone: 'X', risk: 'Low' },{ zone: 'X500', risk: 'Low' },
@@ -128,6 +138,7 @@ function generateMockData() {
         site_id: id, nearest_substation_name: sub.name,
         nearest_substation_id: `SUB-${Math.floor(rand() * 900) + 100}`,
         nearest_substation_dist_mi: dist, nearest_substation_kv: sub.kv,
+        nearest_substation_lat: sub.lat, nearest_substation_lng: sub.lng,
         hosting_capacity_tier: ht,
         hosting_capacity_mw_min: ht === 'High' ? 6 : ht === 'Medium' ? 3 : ht === 'Low' ? 0 : null,
         hosting_capacity_mw_max: ht === 'High' ? 15 : ht === 'Medium' ? 6 : ht === 'Low' ? 3 : null,

@@ -31,6 +31,8 @@ function makeDefaultEnrichment(siteId: string): SiteEnrichment {
     nearest_substation_id: 'SUB-000',
     nearest_substation_dist_mi: 0,
     nearest_substation_kv: 0,
+    nearest_substation_lat: 0,
+    nearest_substation_lng: 0,
     hosting_capacity_tier: 'Unknown',
     hosting_capacity_mw_min: null,
     hosting_capacity_mw_max: null,
