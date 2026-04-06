@@ -132,6 +132,57 @@ async function geocodeAddress(address: string, city: string, state: string, zip:
   }
 }
 
+export async function addSingleSite(fields: {
+  name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  buildingType: string
+  utilityName: string
+}): Promise<boolean> {
+  const store = useCustomSitesStore.getState()
+  store.setUploading(true)
+  store.setUploadError(null)
+
+  const fullAddress = `${fields.address}, ${fields.city}, ${fields.state} ${fields.zip}`
+  const coords = await geocodeAddress(fields.address, fields.city, fields.state, fields.zip)
+
+  if (!coords) {
+    store.setUploadError(`Could not geocode: ${fullAddress}`)
+    return false
+  }
+
+  const id = `custom-${Date.now()}-single`
+
+  store.addCustomSites([{
+    id,
+    external_id: `MAN-${Date.now()}`,
+    name: fields.name || fields.address,
+    address: fields.address,
+    city: fields.city,
+    state: fields.state,
+    zip: fields.zip,
+    owner_name: '',
+    owner_entity: '',
+    building_type: fields.buildingType,
+    utility_name: fields.utilityName,
+    lat: coords.lat,
+    lng: coords.lng,
+    lot_area_sqft: 0,
+    building_area_sqft: 0,
+    enrichment: makeDefaultEnrichment(id),
+    technical_score: 0,
+    commercial_score: 0,
+    composite_score: 50,
+    rank: 0,
+    score_breakdown: makeDefaultBreakdown(),
+  }])
+
+  store.setUploading(false)
+  return true
+}
+
 export async function processCSVUpload(file: File) {
   const store = useCustomSitesStore.getState()
   store.setUploading(true)

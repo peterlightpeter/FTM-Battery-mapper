@@ -1,6 +1,7 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useCustomSitesStore, processCSVUpload } from '../../store/customSitesStore'
+import AddSiteModal from './AddSiteModal'
 
 export default function LumenNav({ onExportCsv }: { onExportCsv?: () => void }) {
   const { user, logout } = useAuthStore()
@@ -9,6 +10,7 @@ export default function LumenNav({ onExportCsv }: { onExportCsv?: () => void }) 
   const uploadError = useCustomSitesStore((s) => s.uploadError)
   const clearCustomSites = useCustomSitesStore((s) => s.clearCustomSites)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -26,6 +28,16 @@ export default function LumenNav({ onExportCsv }: { onExportCsv?: () => void }) 
         <span className="text-white font-medium text-sm tracking-wide">FTM Battery Site Selector</span>
       </div>
       <div className="flex items-center gap-3">
+        {/* Add Single Site */}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="text-xs text-lumen-concrete-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+        >
+          <span className="text-base leading-none">+</span> Add Site
+        </button>
+
+        <span className="text-lumen-concrete-200/30">|</span>
+
         {/* CSV Upload */}
         <input
           ref={fileInputRef}
@@ -79,6 +91,7 @@ export default function LumenNav({ onExportCsv }: { onExportCsv?: () => void }) 
           </>
         )}
       </div>
+      <AddSiteModal open={showAddModal} onClose={() => setShowAddModal(false)} />
     </nav>
   )
 }
